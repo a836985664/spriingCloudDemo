@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Command Clock — 操作时钟</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700;900&family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0d14;
+      --bg-secondary: #111827;
+      --bg-card: #1a1f2e;
+      --bg-card-hover: #1f2537;
+      --accent-cyan: #00d4ff;
+      --accent-cyan-dim: rgba(0, 212, 255, 0.15);
+      --accent-cyan-glow: rgba(0, 212, 255, 0.4);
+      --accent-orange: #ff6b35;
+      --accent-orange-dim: rgba(255, 107, 53, 0.15);
+      --text-primary: #f0f4f8;
+      --text-secondary: #8b9cb3;
+      --text-muted: #4a5568;
+      --border-subtle: rgba(255, 255, 255, 0.06);
+      --border-accent: rgba(0, 212, 255, 0.25);
+      --success: #00e676;
+      --warning: #ffab00;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* === Background Effects === */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,212,255,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,0.04) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0,212,255,0.12) 0%, transparent 50%),
+        radial-gradient(ellipse 60% 40% at 100% 100%, rgba(120,0,255,0.08) 0%, transparent 45%),
+        radial-gradient(ellipse 50% 30% at 0% 100%, rgba(255,107,53,0.06) 0%, transparent 40%),
+        radial-gradient(ellipse 40% 40% at 85% 15%, rgba(0,212,255,0.05) 0%, transparent 35%);
+      pointer-events: none;
+      z-index: 0;
+      animation: bgShift 20s ease-in-out infinite alternate;
+    }
+
+    @keyframes bgShift {
+      0% { opacity: 1; }
+      50% { opacity: 0.8; }
+      100% { opacity: 1; }
+    }
+
+    /* Floating orbs */
+    .bg-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+      z-index: 0;
+      animation: orbFloat 15s ease-in-out infinite;
+    }
+
+    .bg-orb-1 {
+      width: 400px;
+      height: 400px;
+      top: -100px;
+      right: -100px;
+      background: radial-gradient(circle, rgba(0,212,255,0.08) 0%, transparent 70%);
+      animation-delay: 0s;
+    }
+
+    .bg-orb-2 {
+      width: 350px;
+      height: 350px;
+      bottom: -80px;
+      left: -80px;
+      background: radial-gradient(circle, rgba(255,107,53,0.07) 0%, transparent 70%);
+      animation-delay: -5s;
+    }
+
+    .bg-orb-3 {
+      width: 250px;
+      height: 250px;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: radial-gradient(circle, rgba(120,0,255,0.05) 0%, transparent 70%);
+      animation-delay: -10s;
+    }
+
+    @keyframes orbFloat {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      33% { transform: translate(30px, -20px) scale(1.05); }
+      66% { transform: translate(-20px, 20px) scale(0.95); }
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 24px;
+      min-height: 100vh;
+    }
+
+    /* === Header === */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 48px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .header-left .title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .header-left .subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0, 230, 118, 0.1);
+      border: 1px solid rgba(0, 230, 118, 0.25);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--success);
+      letter-spacing: 0.05em;
+    }
+
+    .status-pill .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--success);
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    /* === Main Clock Display === */
+    .clock-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 48px;
+    }
+
+    .time-display {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .time-segment {
+      position: relative;
+    }
+
+    .digit-group {
+      display: flex;
+      gap: 6px;
+    }
+
+    .digit-card {
+      width: 80px;
+      height: 120px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 72px;
+      font-weight: 700;
+      color: var(--text-primary);
+      position: relative;
+      overflow: hidden;
+      box-shadow:
+        0 4px 24px rgba(0,0,0,0.4),
+        inset 0 1px 0 rgba(255,255,255,0.05);
+      transition: transform 0.1s;
+    }
+
+    .digit-card::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 1px;
+      background: rgba(0,0,0,0.4);
+    }
+
+    .digit-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg,
+        rgba(255,255,255,0.03) 0%,
+        transparent 40%,
+        transparent 60%,
+        rgba(0,0,0,0.1) 100%);
+      pointer-events: none;
+    }
+
+    /* Glow on active digit */
+    .digit-card.active {
+      border-color: var(--border-accent);
+      box-shadow:
+        0 0 30px var(--accent-cyan-dim),
+        0 4px 24px rgba(0,0,0,0.4),
+        inset 0 1px 0 rgba(0,212,255,0.1);
+    }
+
+    /* Flip animation */
+    .digit-card.flip {
+      animation: flip-digit 0.3s ease-out;
+    }
+
+    @keyframes flip-digit {
+      0% { transform: rotateX(0deg); }
+      50% { transform: rotateX(-10deg); }
+      100% { transform: rotateX(0deg); }
+    }
+
+    .time-separator {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 72px;
+      font-weight: 300;
+      color: var(--accent-cyan);
+      line-height: 120px;
+      animation: blink 1s step-end infinite;
+      margin-top: 0;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.2; }
+    }
+
+    .ampm-badge {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--accent-orange);
+      letter-spacing: 0.1em;
+      margin-left: 12px;
+      margin-top: 36px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    }
+
+    /* === Ring Progress === */
+    .rings-row {
+      display: flex;
+      gap: 40px;
+      margin-bottom: 16px;
+    }
+
+    .ring-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ring-wrapper {
+      position: relative;
+      width: 72px;
+      height: 72px;
+    }
+
+    .ring-svg {
+      transform: rotate(-90deg);
+      width: 72px;
+      height: 72px;
+    }
+
+    .ring-bg {
+      fill: none;
+      stroke: var(--bg-card);
+      stroke-width: 4;
+    }
+
+    .ring-progress {
+      fill: none;
+      stroke-width: 4;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .ring-progress.seconds { stroke: var(--accent-cyan); filter: drop-shadow(0 0 4px var(--accent-cyan-glow)); }
+    .ring-progress.minutes { stroke: var(--accent-orange); filter: drop-shadow(0 0 4px rgba(255,107,53,0.4)); }
+    .ring-progress.hours { stroke: var(--success); filter: drop-shadow(0 0 4px rgba(0,230,118,0.4)); }
+
+    .ring-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .ring-value {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    /* === Date Row === */
+    .date-row {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      margin-bottom: 48px;
+    }
+
+    .date-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .date-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+    }
+
+    .date-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .date-divider {
+      width: 1px;
+      height: 32px;
+      background: var(--border-subtle);
+    }
+
+    /* === World Clock === */
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border-subtle);
+    }
+
+    .world-clock-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .world-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 20px;
+      transition: all 0.2s;
+    }
+
+    .world-card:hover {
+      border-color: var(--border-accent);
+      background: var(--bg-card-hover);
+    }
+
+    .world-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .world-city {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .world-zone {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .world-time {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .world-date {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .world-diff {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      margin-top: 8px;
+    }
+
+    .world-card.current {
+      border-color: var(--border-accent);
+      background: linear-gradient(135deg, var(--bg-card) 0%, rgba(0,212,255,0.05) 100%);
+    }
+
+    .world-card.current .world-city::after {
+      content: '●';
+      color: var(--accent-cyan);
+      font-size: 8px;
+      margin-left: 6px;
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    /* === Alarm Section === */
+    .alarm-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 32px;
+    }
+
+    .alarm-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .alarm-toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      cursor: pointer;
+    }
+
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+    .toggle-slider {
+      position: absolute;
+      inset: 0;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      transition: all 0.3s;
+    }
+
+    .toggle-slider::before {
+      content: '';
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      left: 2px;
+      top: 2px;
+      background: var(--text-muted);
+      border-radius: 50%;
+      transition: all 0.3s;
+    }
+
+    .toggle-switch input:checked + .toggle-slider {
+      background: var(--accent-cyan-dim);
+      border-color: var(--accent-cyan);
+    }
+
+    .toggle-switch input:checked + .toggle-slider::before {
+      transform: translateX(20px);
+      background: var(--accent-cyan);
+      box-shadow: 0 0 8px var(--accent-cyan-glow);
+    }
+
+    .alarm-status-text {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .alarm-status-text.active {
+      color: var(--accent-cyan);
+    }
+
+    .alarm-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 12px;
+    }
+
+    .alarm-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+
+    .alarm-item.disabled {
+      opacity: 0.4;
+    }
+
+    .alarm-item.active {
+      border-color: rgba(0,212,255,0.2);
+      background: rgba(0,212,255,0.03);
+    }
+
+    .alarm-time {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .alarm-info {
+      flex: 1;
+    }
+
+    .alarm-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .alarm-days {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      margin-top: 2px;
+    }
+
+    .alarm-toggle {
+      transform: scale(0.85);
+    }
+
+    .alarm-delete {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 16px;
+      padding: 4px;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .alarm-delete:hover {
+      color: #ff5252;
+      background: rgba(255,82,82,0.1);
+    }
+
+    .alarm-empty {
+      text-align: center;
+      padding: 32px;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    /* === Alarm Setter === */
+    .alarm-setter {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px;
+      background: var(--bg-secondary);
+      border: 1px dashed var(--border-subtle);
+      border-radius: 8px;
+      margin-top: 12px;
+    }
+
+    .alarm-input-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .alarm-input {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+      width: 64px;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .alarm-input:focus {
+      border-color: var(--accent-cyan);
+    }
+
+    .alarm-input-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: 4px;
+    }
+
+    .alarm-colon {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .alarm-repeat-select {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      outline: none;
+      cursor: pointer;
+    }
+
+    .alarm-set-btn {
+      background: var(--accent-cyan);
+      color: var(--bg-primary);
+      border: none;
+      border-radius: 8px;
+      padding: 12px 24px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.05em;
+      margin-left: auto;
+    }
+
+    .alarm-set-btn:hover {
+      background: #33ddff;
+      box-shadow: 0 0 20px var(--accent-cyan-glow);
+    }
+
+    /* === Footer === */
+    .footer {
+      text-align: center;
+      padding: 24px;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: 0.05em;
+    }
+
+    /* === Notification Toast === */
+    .toast {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      background: var(--bg-card);
+      border: 1px solid var(--accent-cyan);
+      border-radius: 12px;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 24px var(--accent-cyan-dim);
+      z-index: 1000;
+      opacity: 0;
+      transform: translateY(-20px);
+      transition: all 0.3s;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .toast-icon {
+      font-size: 24px;
+    }
+
+    .toast-content {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .toast-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .toast-message {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    /* === Ring Animation === */
+    .ring-burst {
+      animation: ring-burst 0.4s ease-out;
+    }
+
+    @keyframes ring-burst {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+      100% { transform: scale(1); }
+    }
+
+    /* === Keyboard Hints === */
+    .keyboard-hint {
+      position: fixed;
+      bottom: 16px;
+      left: 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+      opacity: 0.6;
+      transition: opacity 0.2s;
+    }
+
+    .keyboard-hint:hover {
+      opacity: 1;
+    }
+
+    .keyboard-hint kbd {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      padding: 2px 6px;
+      margin: 0 2px;
+    }
+
+    /* === Responsive === */
+    @media (max-width: 768px) {
+      .digit-card {
+        width: 56px;
+        height: 84px;
+        font-size: 48px;
+        border-radius: 8px;
+      }
+
+      .time-separator {
+        font-size: 48px;
+        line-height: 84px;
+      }
+
+      .world-clock-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .alarm-setter {
+        flex-wrap: wrap;
+      }
+
+      .alarm-set-btn {
+        width: 100%;
+        margin-top: 8px;
+        margin-left: 0;
+      }
+
+      .keyboard-hint {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="bg-orb bg-orb-1"></div>
+<div class="bg-orb bg-orb-2"></div>
+<div class="bg-orb bg-orb-3"></div>
+<div class="app">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <div class="title">Command Clock</div>
+      <div class="subtitle">精密操作时钟系统 · v2.1</div>
+    </div>
+    <div class="header-right">
+      <div class="status-pill">
+        <span class="dot"></span>
+        <span>系统在线</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Clock -->
+  <div class="clock-container">
+    <div class="time-display">
+      <div class="time-segment">
+        <div class="digit-group">
+          <div class="digit-card active" id="hh1">0</div>
+          <div class="digit-card active" id="hh2">0</div>
+        </div>
+      </div>
+      <div class="time-separator">:</div>
+      <div class="time-segment">
+        <div class="digit-group">
+          <div class="digit-card active" id="mm1">0</div>
+          <div class="digit-card active" id="mm2">0</div>
+        </div>
+      </div>
+      <div class="time-separator">:</div>
+      <div class="time-segment">
+        <div class="digit-group">
+          <div class="digit-card active" id="ss1">0</div>
+          <div class="digit-card active" id="ss2">0</div>
+        </div>
+      </div>
+      <div class="ampm-badge" id="ampm">AM</div>
+    </div>
+
+    <!-- Ring Progress -->
+    <div class="rings-row">
+      <div class="ring-item">
+        <div class="ring-wrapper">
+          <svg class="ring-svg" viewBox="0 0 72 72">
+            <circle class="ring-bg" cx="36" cy="36" r="30"/>
+            <circle class="ring-progress seconds" id="ring-seconds" cx="36" cy="36" r="30"
+              stroke-dasharray="188.5" stroke-dashoffset="188.5"/>
+          </svg>
+          <div class="ring-value" id="rv-seconds">00</div>
+        </div>
+        <div class="ring-label">秒</div>
+      </div>
+      <div class="ring-item">
+        <div class="ring-wrapper">
+          <svg class="ring-svg" viewBox="0 0 72 72">
+            <circle class="ring-bg" cx="36" cy="36" r="30"/>
+            <circle class="ring-progress minutes" id="ring-minutes" cx="36" cy="36" r="30"
+              stroke-dasharray="188.5" stroke-dashoffset="188.5"/>
+          </svg>
+          <div class="ring-value" id="rv-minutes">00</div>
+        </div>
+        <div class="ring-label">分</div>
+      </div>
+      <div class="ring-item">
+        <div class="ring-wrapper">
+          <svg class="ring-svg" viewBox="0 0 72 72">
+            <circle class="ring-bg" cx="36" cy="36" r="30"/>
+            <circle class="ring-progress hours" id="ring-hours" cx="36" cy="36" r="30"
+              stroke-dasharray="188.5" stroke-dashoffset="188.5"/>
+          </svg>
+          <div class="ring-value" id="rv-hours">00</div>
+        </div>
+        <div class="ring-label">时</div>
+      </div>
+    </div>
+
+    <!-- Date -->
+    <div class="date-row">
+      <div class="date-block">
+        <div class="date-label">星期</div>
+        <div class="date-value" id="weekday">星期一</div>
+      </div>
+      <div class="date-divider"></div>
+      <div class="date-block">
+        <div class="date-label">日期</div>
+        <div class="date-value" id="date-str">2024-01-01</div>
+      </div>
+      <div class="date-divider"></div>
+      <div class="date-block">
+        <div class="date-label">年内第</div>
+        <div class="date-value" id="day-of-year">001 天</div>
+      </div>
+      <div class="date-divider"></div>
+      <div class="date-block">
+        <div class="date-label">Unix 时间戳</div>
+        <div class="date-value" id="unix-ts">0000000000</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- World Clock -->
+  <div class="section-title">世界时钟</div>
+  <div class="world-clock-grid">
+    <div class="world-card current" id="wc-local">
+      <div class="world-card-header">
+        <div>
+          <div class="world-city" id="wc-local-city">本地时间</div>
+          <div class="world-zone" id="wc-local-zone">Asia/Shanghai (GMT+8)</div>
+        </div>
+      </div>
+      <div class="world-time" id="wc-local-time">00:00:00</div>
+      <div class="world-date" id="wc-local-date">1970-01-01</div>
+    </div>
+    <div class="world-card" id="wc-ny">
+      <div class="world-card-header">
+        <div>
+          <div class="world-city">New York</div>
+          <div class="world-zone">America/New_York</div>
+        </div>
+        <div class="world-diff" id="wc-ny-diff">-12h</div>
+      </div>
+      <div class="world-time" id="wc-ny-time">00:00:00</div>
+      <div class="world-date" id="wc-ny-date">1970-01-01</div>
+    </div>
+    <div class="world-card" id="wc-london">
+      <div class="world-card-header">
+        <div>
+          <div class="world-city">London</div>
+          <div class="world-zone">Europe/London</div>
+        </div>
+        <div class="world-diff" id="wc-london-diff">-8h</div>
+      </div>
+      <div class="world-time" id="wc-london-time">00:00:00</div>
+      <div class="world-date" id="wc-london-date">1970-01-01</div>
+    </div>
+  </div>
+
+  <!-- Alarm Section -->
+  <div class="section-title">闹钟</div>
+  <div class="alarm-section">
+    <div class="alarm-header">
+      <div class="alarm-toggle-row">
+        <label class="toggle-switch">
+          <input type="checkbox" id="alarm-master-toggle">
+          <span class="toggle-slider"></span>
+        </label>
+        <span class="alarm-status-text" id="alarm-status">闹钟已关闭</span>
+      </div>
+    </div>
+
+    <div class="alarm-grid" id="alarm-list"></div>
+
+    <div class="alarm-setter">
+      <div class="alarm-input-group">
+        <div>
+          <input class="alarm-input" type="text" id="alarm-hh" value="08" maxlength="2" placeholder="00">
+          <div class="alarm-input-label">时</div>
+        </div>
+        <div class="alarm-colon">:</div>
+        <div>
+          <input class="alarm-input" type="text" id="alarm-mm" value="00" maxlength="2" placeholder="00">
+          <div class="alarm-input-label">分</div>
+        </div>
+      </div>
+      <select class="alarm-repeat-select" id="alarm-repeat">
+        <option value="once">仅一次</option>
+        <option value="daily">每天</option>
+        <option value="weekdays">工作日</option>
+        <option value="weekends">周末</option>
+      </select>
+      <button class="alarm-set-btn" id="alarm-add-btn">添加闹钟</button>
+    </div>
+  </div>
+
+  <div class="footer">
+    COMMAND CLOCK SYSTEM · PRECISION TIME · <span id="tz-info">Asia/Shanghai (GMT+8:00)</span>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  <div class="toast-icon" id="toast-icon">🔔</div>
+  <div class="toast-content">
+    <div class="toast-title" id="toast-title">闹钟</div>
+    <div class="toast-message" id="toast-message">时间到！</div>
+  </div>
+</div>
+
+<!-- Keyboard Hints -->
+<div class="keyboard-hint">
+  <kbd>Ctrl</kbd>+<kbd>A</kbd> 快速设置闹钟
+</div>
+
+<script>
+  // ========== 安全存储工具 ==========
+  const Storage = {
+    get(key, fallback = '[]') {
+      try {
+        const data = localStorage.getItem(key);
+        return data ? JSON.parse(data) : JSON.parse(fallback);
+      } catch {
+        return JSON.parse(fallback);
+      }
+    },
+    set(key, value) {
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+        return true;
+      } catch {
+        console.warn('localStorage not available');
+        return false;
+      }
+    }
+  };
+
+  // ========== DOM 元素缓存 ==========
+  const DOM = {
+    // 时间数字
+    hh1: document.getElementById('hh1'),
+    hh2: document.getElementById('hh2'),
+    mm1: document.getElementById('mm1'),
+    mm2: document.getElementById('mm2'),
+    ss1: document.getElementById('ss1'),
+    ss2: document.getElementById('ss2'),
+    ampm: document.getElementById('ampm'),
+    // 环形进度
+    ringSeconds: document.getElementById('ring-seconds'),
+    ringMinutes: document.getElementById('ring-minutes'),
+    ringHours: document.getElementById('ring-hours'),
+    rvSeconds: document.getElementById('rv-seconds'),
+    rvMinutes: document.getElementById('rv-minutes'),
+    rvHours: document.getElementById('rv-hours'),
+    // 日期
+    weekday: document.getElementById('weekday'),
+    dateStr: document.getElementById('date-str'),
+    dayOfYear: document.getElementById('day-of-year'),
+    unixTs: document.getElementById('unix-ts'),
+    // 世界时钟 - 本地
+    wcLocalTime: document.getElementById('wc-local-time'),
+    wcLocalDate: document.getElementById('wc-local-date'),
+    // 世界时钟 - 纽约
+    wcNyTime: document.getElementById('wc-ny-time'),
+    wcNyDate: document.getElementById('wc-ny-date'),
+    wcNyDiff: document.getElementById('wc-ny-diff'),
+    // 世界时钟 - 伦敦
+    wcLondonTime: document.getElementById('wc-london-time'),
+    wcLondonDate: document.getElementById('wc-london-date'),
+    wcLondonDiff: document.getElementById('wc-london-diff'),
+    // 闹钟
+    alarmList: document.getElementById('alarm-list'),
+    alarmMasterToggle: document.getElementById('alarm-master-toggle'),
+    alarmStatus: document.getElementById('alarm-status'),
+    alarmHh: document.getElementById('alarm-hh'),
+    alarmMm: document.getElementById('alarm-mm'),
+    alarmRepeat: document.getElementById('alarm-repeat'),
+    alarmAddBtn: document.getElementById('alarm-add-btn'),
+    // Toast
+    toast: document.getElementById('toast'),
+    toastIcon: document.getElementById('toast-icon'),
+    toastTitle: document.getElementById('toast-title'),
+    toastMessage: document.getElementById('toast-message')
+  };
+
+  // ========== 状态 ==========
+  let alarms = Storage.get('cmdclock_alarms', '[]');
+  let alarmMasterEnabled = Storage.get('cmdclock_master', 'false');
+  let lastSecond = -1;
+  let lastValues = { hh: '', mm: '', ss: '' }; // 用于检测变化
+  const circumference = 2 * Math.PI * 30;
+
+  // ========== 音频系统 ==========
+  const AudioSystem = {
+    // 生成简单的提示音 (无需外部文件)
+    playBeep() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc.frequency.value = 880; // A5
+        osc.type = 'sine';
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+        
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.5);
+      } catch (e) {
+        console.warn('Audio not supported');
+      }
+    },
+    
+    playAlarmSound() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // 播放三次滴声
+        for (let i = 0; i < 3; i++) {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          
+          osc.frequency.value = 1000 + i * 200;
+          osc.type = 'sine';
+          
+          const startTime = ctx.currentTime + i * 0.3;
+          gain.gain.setValueAtTime(0, startTime);
+          gain.gain.linearRampToValueAtTime(0.3, startTime + 0.05);
+          gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.25);
+          
+          osc.start(startTime);
+          osc.stop(startTime + 0.3);
+        }
+      } catch (e) {
+        console.warn('Audio not supported');
+      }
+    }
+  };
+
+  // ========== 通知系统 ==========
+  const Notify = {
+    async requestPermission() {
+      if (!('Notification' in window)) return false;
+      if (Notification.permission === 'granted') return true;
+      if (Notification.permission === 'denied') return false;
+      
+      try {
+        const permission = await Notification.requestPermission();
+        return permission === 'granted';
+      } catch {
+        return false;
+      }
+    },
+    
+    show(title, body, icon = '🔔') {
+      if (Notification.permission === 'granted') {
+        try {
+          new Notification(title, { body, icon: 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">${icon}</text></svg>`) });
+        } catch (e) {}
+      }
+    }
+  };
+
+  // ========== 时钟更新 ==========
+  function updateClock() {
+    const now = new Date();
+    const h = now.getHours();
+    const m = now.getMinutes();
+    const s = now.getSeconds();
+
+    // 只在秒数变化时更新 DOM
+    if (s === lastSecond) return;
+    lastSecond = s;
+
+    const ampm = h < 12 ? 'AM' : 'PM';
+    const hh = String(h).padStart(2, '0');
+    const mm = String(m).padStart(2, '0');
+    const ss = String(s).padStart(2, '0');
+
+    // 更新数字，带变化动画
+    updateDigit(DOM.hh1, hh[0], lastValues.hh[0]);
+    updateDigit(DOM.hh2, hh[1], lastValues.hh[1]);
+    updateDigit(DOM.mm1, mm[0], lastValues.mm[0]);
+    updateDigit(DOM.mm2, mm[1], lastValues.mm[1]);
+    updateDigit(DOM.ss1, ss[0], lastValues.ss[0]);
+    updateDigit(DOM.ss2, ss[1], lastValues.ss[1]);
+    DOM.ampm.textContent = ampm;
+    
+    lastValues = { hh, mm, ss };
+
+    // 环形进度
+    const secPct = s / 60;
+    const minPct = (m * 60 + s) / 3600;
+    const hrPct = (h % 12) / 12;
+
+    DOM.ringSeconds.style.strokeDashoffset = circumference * (1 - secPct);
+    DOM.ringMinutes.style.strokeDashoffset = circumference * (1 - minPct);
+    DOM.ringHours.style.strokeDashoffset = circumference * (1 - hrPct);
+
+    DOM.rvSeconds.textContent = ss;
+    DOM.rvMinutes.textContent = mm;
+    DOM.rvHours.textContent = String(Math.round(hrPct * 12) || 12).padStart(2, '0');
+
+    // 整点动画
+    if (s === 0) {
+      document.querySelectorAll('.ring-item').forEach(el => {
+        el.classList.remove('ring-burst');
+        void el.offsetWidth; // 强制重绘
+        el.classList.add('ring-burst');
+      });
+    }
+
+    // 日期信息
+    const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+    DOM.weekday.textContent = weekdays[now.getDay()];
+    DOM.dateStr.textContent = now.toISOString().slice(0, 10);
+    
+    const startOfYear = new Date(now.getFullYear(), 0, 0);
+    const dayOfYear = Math.floor((now - startOfYear) / 86400000);
+    DOM.dayOfYear.textContent = dayOfYear + ' 天';
+    DOM.unixTs.textContent = Math.floor(now.getTime() / 1000);
+
+    // 世界时钟
+    updateWorldClock('ny', 'America/New_York', DOM.wcNyTime, DOM.wcNyDate, DOM.wcNyDiff);
+    updateWorldClock('london', 'Europe/London', DOM.wcLondonTime, DOM.wcLondonDate, DOM.wcLondonDiff);
+    
+    // 本地时间
+    DOM.wcLocalTime.textContent = now.toLocaleTimeString('zh-CN', { hour12: false });
+    DOM.wcLocalDate.textContent = now.toLocaleDateString('zh-CN');
+
+    // 检查闹钟
+    checkAlarms(h, m, s, now);
+  }
+
+  function updateDigit(element, newValue, oldValue) {
+    if (newValue !== oldValue) {
+      element.textContent = newValue;
+      element.classList.remove('flip');
+      void element.offsetWidth;
+      element.classList.add('flip');
+    }
+  }
+
+  function updateWorldClock(id, tz, timeEl, dateEl, diffEl) {
+    try {
+      const now = new Date();
+      const tzTimeStr = now.toLocaleTimeString('zh-CN', { timeZone: tz, hour12: false });
+      const tzDateStr = now.toLocaleDateString('zh-CN', { timeZone: tz });
+      
+      timeEl.textContent = tzTimeStr;
+      dateEl.textContent = tzDateStr;
+
+      // 计算时差
+      const localOffset = -now.getTimezoneOffset();
+      const tzDate = new Date(now.toLocaleString('en-US', { timeZone: tz }));
+      const localDate = new Date(now.toLocaleString('en-US'));
+      const diffHours = Math.round((tzDate - localDate) / 3600000);
+      diffEl.textContent = diffHours > 0 ? `+${diffHours}h` : diffHours < 0 ? `${diffHours}h` : '±0h';
+    } catch (e) {}
+  }
+
+  // ========== 闹钟系统 ==========
+  function checkAlarms(h, m, s, now) {
+    if (!alarmMasterEnabled || s !== 0) return;
+    
+    const dayOfWeek = now.getDay();
+    const currentTime = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    
+    alarms.forEach(alarm => {
+      if (!alarm.enabled || alarm.time !== currentTime) return;
+      
+      // 检查重复模式
+      if (alarm.repeat === 'weekdays' && (dayOfWeek === 0 || dayOfWeek === 6)) return;
+      if (alarm.repeat === 'weekends' && dayOfWeek >= 1 && dayOfWeek <= 5) return;
+      
+      triggerAlarm(alarm);
+    });
+  }
+
+  function triggerAlarm(alarm) {
+    const label = alarm.label || `闹钟 ${alarm.time}`;
+    showToast('🔔', '闹钟响了！', label);
+    AudioSystem.playAlarmSound();
+    Notify.show('⏰ ' + label, `现在是 ${alarm.time}`, '🔔');
+    
+    // 如果是仅一次，自动禁用
+    if (alarm.repeat === 'once') {
+      alarm.enabled = false;
+      Storage.set('cmdclock_alarms', alarms);
+      renderAlarmList();
+    }
+  }
+
+  function showToast(icon, title, message) {
+    DOM.toastIcon.textContent = icon;
+    DOM.toastTitle.textContent = title;
+    DOM.toastMessage.textContent = message;
+    DOM.toast.classList.add('show');
+    setTimeout(() => DOM.toast.classList.remove('show'), 6000);
+  }
+
+  function renderAlarmList() {
+    if (alarms.length === 0) {
+      DOM.alarmList.innerHTML = '<div class="alarm-empty">暂无闹钟 · 点击下方添加</div>';
+      return;
+    }
+    
+    const repeatLabels = { once: '仅一次', daily: '每天', weekdays: '工作日', weekends: '周末' };
+    
+    DOM.alarmList.innerHTML = alarms.map((alarm, idx) => {
+      const [h, m] = alarm.time.split(':');
+      return `
+        <div class="alarm-item ${alarm.enabled ? 'active' : 'disabled'}" data-idx="${idx}">
+          <div class="alarm-time">${h}:${m}</div>
+          <div class="alarm-info">
+            <div class="alarm-label">${alarm.label || repeatLabels[alarm.repeat]}</div>
+            <div class="alarm-days">${repeatLabels[alarm.repeat] || '仅一次'}</div>
+          </div>
+          <label class="toggle-switch alarm-toggle">
+            <input type="checkbox" ${alarm.enabled ? 'checked' : ''} onchange="toggleAlarm(${idx}, this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+          <button class="alarm-delete" onclick="deleteAlarm(${idx})">✕</button>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function addAlarm() {
+    const hh = document.getElementById('alarm-hh').value.trim() || '08';
+    const mm = document.getElementById('alarm-mm').value.trim() || '00';
+    const repeat = document.getElementById('alarm-repeat').value;
+
+    const h = String(Math.min(23, Math.max(0, parseInt(hh) || 0))).padStart(2, '0');
+    const m = String(Math.min(59, Math.max(0, parseInt(mm) || 0))).padStart(2, '0');
+
+    alarms.push({ time: `${h}:${m}`, enabled: true, repeat, label: '' });
+    Storage.set('cmdclock_alarms', alarms);
+    renderAlarmList();
+    showToast('✅', '闹钟已添加', `${h}:${m}`);
+  }
+
+  window.toggleAlarm = function(idx, enabled) {
+    alarms[idx].enabled = enabled;
+    Storage.set('cmdclock_alarms', alarms);
+    renderAlarmList();
+  };
+
+  window.deleteAlarm = function(idx) {
+    alarms.splice(idx, 1);
+    Storage.set('cmdclock_alarms', alarms);
+    renderAlarmList();
+    AudioSystem.playBeep();
+  };
+
+  function updateAlarmMaster() {
+    alarmMasterEnabled = DOM.alarmMasterToggle.checked;
+    Storage.set('cmdclock_master', alarmMasterEnabled);
+    DOM.alarmStatus.textContent = alarmMasterEnabled ? '闹钟已启用' : '闹钟已关闭';
+    DOM.alarmStatus.className = 'alarm-status-text' + (alarmMasterEnabled ? ' active' : '');
+    
+    if (alarmMasterEnabled) {
+      Notify.requestPermission();
+    }
+  }
+
+  // ========== 输入验证 ==========
+  DOM.alarmHh.addEventListener('input', function() {
+    this.value = this.value.replace(/\D/g, '').slice(0, 2);
+    if (parseInt(this.value) > 23) this.value = '23';
+  });
+  
+  DOM.alarmMm.addEventListener('input', function() {
+    this.value = this.value.replace(/\D/g, '').slice(0, 2);
+    if (parseInt(this.value) > 59) this.value = '59';
+  });
+
+  // ========== 键盘快捷键 ==========
+  document.addEventListener('keydown', (e) => {
+    // Ctrl+A 快速设置闹钟
+    if (e.key === 'a' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      DOM.alarmHh.focus();
+      DOM.alarmHh.select();
+    }
+    
+    // Enter 添加闹钟 (当焦点在输入框时)
+    if (e.key === 'Enter' && (document.activeElement === DOM.alarmHh || document.activeElement === DOM.alarmMm)) {
+      addAlarm();
+    }
+  });
+
+  // ========== 初始化 ==========
+  DOM.alarmMasterToggle.checked = alarmMasterEnabled;
+  updateAlarmMaster();
+  DOM.alarmMasterToggle.addEventListener('change', updateAlarmMaster);
+  DOM.alarmAddBtn.addEventListener('click', addAlarm);
+  renderAlarmList();
+
+  // 请求通知权限
+  Notify.requestPermission();
+
+  // 使用 setInterval 更新时钟 (每秒)
+  updateClock();
+  setInterval(updateClock, 1000);
+</script>
+
+</body>
+</html>

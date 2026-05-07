@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>麦克风测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+
+        .test-section h2 {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .button.primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .button.primary:hover {
+            background: #5568d3;
+        }
+
+        .button.success {
+            background: #28a745;
+            color: white;
+        }
+
+        .button.success:hover {
+            background: #218838;
+        }
+
+        .button.danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .button.danger:hover {
+            background: #c82333;
+        }
+
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .visualizer {
+            width: 100%;
+            height: 100px;
+            background: #000;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .log-box {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 2px 0;
+            border-bottom: 1px solid #333;
+        }
+
+        .log-entry.error {
+            color: #ff6b6b;
+        }
+
+        .log-entry.success {
+            color: #51cf66;
+        }
+
+        .log-entry.info {
+            color: #74c0fc;
+        }
+
+        .audio-player {
+            width: 100%;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 麦克风测试工具</h1>
+
+        <!-- 1. 权限测试 -->
+        <div class="test-section">
+            <h2>1️⃣ 麦克风权限测试</h2>
+            <button class="button primary" id="test-permission">测试麦克风权限</button>
+            <div class="status" id="permission-status"></div>
+        </div>
+
+        <!-- 2. 设备信息 -->
+        <div class="test-section">
+            <h2>2️⃣ 音频设备信息</h2>
+            <button class="button primary" id="list-devices">列出音频设备</button>
+            <div class="status" id="devices-status"></div>
+        </div>
+
+        <!-- 3. 实时音频测试 -->
+        <div class="test-section">
+            <h2>3️⃣ 实时音频测试</h2>
+            <button class="button success" id="start-monitor">开始监听</button>
+            <button class="button danger" id="stop-monitor" disabled>停止监听</button>
+            <canvas class="visualizer" id="visualizer"></canvas>
+            <div class="status" id="monitor-status"></div>
+        </div>
+
+        <!-- 4. 录制测试 -->
+        <div class="test-section">
+            <h2>4️⃣ 录制测试</h2>
+            <button class="button success" id="start-record">开始录制</button>
+            <button class="button danger" id="stop-record" disabled>停止录制</button>
+            <div class="status" id="record-status"></div>
+            <audio class="audio-player" id="recorded-audio" controls style="display: none;"></audio>
+        </div>
+
+        <!-- 5. 日志 -->
+        <div class="test-section">
+            <h2>5️⃣ 测试日志</h2>
+            <button class="button" id="clear-log">清空日志</button>
+            <div class="log-box" id="log-box"></div>
+        </div>
+    </div>
+
+    <script>
+        let audioContext;
+        let analyser;
+        let microphone;
+        let mediaRecorder;
+        let audioChunks = [];
+        let animationId;
+        let isMonitoring = false;
+        let isRecording = false;
+
+        const logBox = document.getElementById('log-box');
+
+        // 日志函数
+        function log(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logBox.appendChild(entry);
+            logBox.scrollTop = logBox.scrollHeight;
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        // 清空日志
+        document.getElementById('clear-log').addEventListener('click', () => {
+            logBox.innerHTML = '';
+            log('日志已清空', 'info');
+        });
+
+        // 1. 测试麦克风权限
+        document.getElementById('test-permission').addEventListener('click', async () => {
+            const status = document.getElementById('permission-status');
+            status.className = 'status info';
+            status.textContent = '正在请求麦克风权限...';
+
+            try {
+                log('开始测试麦克风权限...', 'info');
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                log('✅ 麦克风权限获取成功！', 'success');
+                status.className = 'status success';
+                status.textContent = '✅ 麦克风权限正常';
+                
+                // 停止流
+                stream.getTracks().forEach(track => track.stop());
+                
+                // 显示设备信息
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const audioInputs = devices.filter(device => device.kind === 'audioinput');
+                log(`找到 ${audioInputs.length} 个音频输入设备`, 'info');
+                audioInputs.forEach((device, index) => {
+                    log(`  设备 ${index + 1}: ${device.label || '未知设备'}`, 'info');
+                });
+                
+            } catch (error) {
+                log(`❌ 麦克风权限获取失败: ${error.message}`, 'error');
+                status.className = 'status error';
+                status.textContent = `❌ 错误: ${error.message}`;
+            }
+        });
+
+        // 2. 列出音频设备
+        document.getElementById('list-devices').addEventListener('click', async () => {
+            const status = document.getElementById('devices-status');
+            status.className = 'status info';
+            status.textContent = '正在获取设备信息...';
+
+            try {
+                log('开始获取音频设备信息...', 'info');
+                
+                // 先请求权限以获取设备标签
+                await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const audioInputs = devices.filter(device => device.kind === 'audioinput');
+                const audioOutputs = devices.filter(device => device.kind === 'audiooutput');
+                
+                log(`找到 ${audioInputs.length} 个音频输入设备`, 'info');
+                audioInputs.forEach((device, index) => {
+                    log(`  输入设备 ${index + 1}: ${device.label || '未知设备'}`, 'info');
+                    log(`    - ID: ${device.deviceId}`, 'info');
+                });
+                
+                log(`找到 ${audioOutputs.length} 个音频输出设备`, 'info');
+                audioOutputs.forEach((device, index) => {
+                    log(`  输出设备 ${index + 1}: ${device.label || '未知设备'}`, 'info');
+                });
+                
+                status.className = 'status success';
+                status.textContent = `✅ 找到 ${audioInputs.length} 个输入设备，${audioOutputs.length} 个输出设备`;
+                
+            } catch (error) {
+                log(`❌ 获取设备信息失败: ${error.message}`, 'error');
+                status.className = 'status error';
+                status.textContent = `❌ 错误: ${error.message}`;
+            }
+        });
+
+        // 3. 开始监听
+        document.getElementById('start-monitor').addEventListener('click', async () => {
+            const status = document.getElementById('monitor-status');
+            const startButton = document.getElementById('start-monitor');
+            const stopButton = document.getElementById('stop-monitor');
+
+            try {
+                log('开始监听麦克风...', 'info');
+                
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 2048;
+                
+                microphone = audioContext.createMediaStreamSource(stream);
+                microphone.connect(analyser);
+                
+                isMonitoring = true;
+                startButton.disabled = true;
+                stopButton.disabled = false;
+                
+                status.className = 'status success';
+                status.textContent = '✅ 正在监听麦克风...';
+                
+                log('✅ 麦克风监听已启动', 'success');
+                drawVisualizer();
+                
+            } catch (error) {
+                log(`❌ 启动监听失败: ${error.message}`, 'error');
+                status.className = 'status error';
+                status.textContent = `❌ 错误: ${error.message}`;
+            }
+        });
+
+        // 4. 停止监听
+        document.getElementById('stop-monitor').addEventListener('click', () => {
+            const status = document.getElementById('monitor-status');
+            const startButton = document.getElementById('start-monitor');
+            const stopButton = document.getElementById('stop-monitor');
+
+            if (microphone) {
+                microphone.disconnect();
+            }
+            if (audioContext) {
+                audioContext.close();
+            }
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+
+            isMonitoring = false;
+            startButton.disabled = false;
+            stopButton.disabled = true;
+
+            status.className = 'status info';
+            status.textContent = '监听已停止';
+            log('⏹️ 麦克风监听已停止', 'info');
+        });
+
+        // 绘制波形
+        function drawVisualizer() {
+            if (!isMonitoring) return;
+
+            const canvas = document.getElementById('visualizer');
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width = canvas.offsetWidth;
+            const height = canvas.height = canvas.offsetHeight;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteTimeDomainData(dataArray);
+
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#00ff00';
+            ctx.beginPath();
+
+            const sliceWidth = width * 1.0 / bufferLength;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                const v = dataArray[i] / 128.0;
+                const y = v * height / 2;
+
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+
+                x += sliceWidth;
+            }
+
+            ctx.lineTo(canvas.width, canvas.height / 2);
+            ctx.stroke();
+
+            // 检测是否有声音
+            let hasSound = false;
+            for (let i = 0; i < bufferLength; i++) {
+                if (Math.abs(dataArray[i] - 128) > 10) {
+                    hasSound = true;
+                    break;
+                }
+            }
+
+            if (hasSound) {
+                ctx.fillStyle = 'rgba(0, 255, 0, 0.1)';
+                ctx.fillRect(0, 0, width, height);
+            }
+
+            animationId = requestAnimationFrame(drawVisualizer);
+        }
+
+        // 5. 开始录制
+        document.getElementById('start-record').addEventListener('click', async () => {
+            const status = document.getElementById('record-status');
+            const startButton = document.getElementById('start-record');
+            const stopButton = document.getElementById('stop-record');
+            const audioPlayer = document.getElementById('recorded-audio');
+
+            try {
+                log('开始录制音频...', 'info');
+                
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                        log(`📦 收到音频数据块: ${event.data.size} 字节`, 'info');
+                    }
+                };
+
+                mediaRecorder.onstop = () => {
+                    log('⏹️ 录制停止', 'info');
+                    
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    log(`🎵 录制完成，文件大小: ${audioBlob.size} 字节`, 'success');
+                    
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    audioPlayer.src = audioUrl;
+                    audioPlayer.style.display = 'block';
+                    
+                    status.className = 'status success';
+                    status.textContent = `✅ 录制完成！文件大小: ${formatFileSize(audioBlob.size)}`;
+                    
+                    // 停止所有轨道
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                mediaRecorder.start(100);
+                isRecording = true;
+                startButton.disabled = true;
+                stopButton.disabled = false;
+                audioPlayer.style.display = 'none';
+                
+                status.className = 'status info';
+                status.textContent = '🔴 正在录制...';
+                
+                log('✅ 录制已开始', 'success');
+                
+            } catch (error) {
+                log(`❌ 录制失败: ${error.message}`, 'error');
+                status.className = 'status error';
+                status.textContent = `❌ 错误: ${error.message}`;
+            }
+        });
+
+        // 6. 停止录制
+        document.getElementById('stop-record').addEventListener('click', () => {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                
+                const startButton = document.getElementById('start-record');
+                const stopButton = document.getElementById('stop-record');
+                const status = document.getElementById('record-status');
+                
+                startButton.disabled = false;
+                stopButton.disabled = true;
+                status.textContent = '正在处理...';
+            }
+        });
+
+        // 格式化文件大小
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // 页面加载时的日志
+        log('🎤 麦克风测试工具已加载', 'info');
+        log('浏览器信息:', 'info');
+        log(`  - UserAgent: ${navigator.userAgent}`, 'info');
+        log(`  - 平台: ${navigator.platform}`, 'info');
+        log(`  - 语言: ${navigator.language}`, 'info');
+    </script>
+</body>
+</html>

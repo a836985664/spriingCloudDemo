@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>在线客服 | 玻璃拟态风格</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans SC', sans-serif;
+            background: linear-gradient(45deg, #f3e7e9 0%, #e3eeff 99%, #e3eeff 100%);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.25);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+        .glass-input {
+            background: rgba(255, 255, 255, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            color: #475569;
+        }
+        .glass-input:focus {
+            background: rgba(255, 255, 255, 0.7);
+            box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.2);
+            outline: none;
+        }
+        .msg-bubble {
+            max-width: 80%;
+            padding: 0.75rem 1.25rem;
+            border-radius: 1.25rem;
+            line-height: 1.5;
+            position: relative;
+        }
+        .msg-me {
+            background: rgba(99, 102, 241, 0.8);
+            color: white;
+            margin-left: auto;
+            border-bottom-right-radius: 0.25rem;
+            backdrop-filter: blur(4px);
+        }
+        .msg-other {
+            background: rgba(255, 255, 255, 0.6);
+            color: #1e293b;
+            margin-right: auto;
+            border-bottom-left-radius: 0.25rem;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(4px);
+        }
+        .msg-sys {
+            text-align: center;
+            font-size: 0.75rem;
+            color: #64748b;
+            margin: 0.5rem 0;
+            background: rgba(255, 255, 255, 0.3);
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            align-self: center;
+            backdrop-filter: blur(2px);
+        }
+    </style>
+</head>
+<body>
+
+<div class="w-full max-w-md h-[75vh] glass-card flex flex-col relative shadow-2xl">
+    <!-- 头部 -->
+    <div class="p-6 flex items-center justify-between border-b border-white/20">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500/80 to-purple-500/80 flex items-center justify-center text-white shadow-lg backdrop-blur-md border border-white/20">
+                <i data-lucide="message-circle" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <h2 class="font-bold text-slate-800">在线客服</h2>
+                <p id="status" class="text-xs text-slate-500">准备就绪</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button id="btn-human" onclick="toggleMode()" class="text-xs bg-rose-500/80 hover:bg-rose-500 text-white px-4 py-2 rounded-full font-medium transition backdrop-blur-sm border border-white/30">
+                转人工
+            </button>
+            <button id="btn-conn" onclick="toggleConnect()" class="text-xs bg-white/40 hover:bg-white/60 px-4 py-2 rounded-full font-medium text-slate-700 transition backdrop-blur-sm border border-white/30">
+                开始
+            </button>
+        </div>
+    </div>
+
+    <!-- 登录遮罩 -->
+    <div id="login-layer" class="absolute inset-0 z-20 glass-card m-2 flex flex-col items-center justify-center p-6 text-center bg-white/30">
+        <div class="w-16 h-16 bg-indigo-100/50 rounded-2xl flex items-center justify-center text-indigo-600 mb-5 shadow-inner">
+            <i data-lucide="sparkles" class="w-8 h-8"></i>
+        </div>
+        <h3 class="text-xl font-bold text-slate-800 mb-2">欢迎咨询</h3>
+        <p class="text-slate-600 mb-6 text-sm">请输入您的称呼，我们将立即为您接入智能助理。</p>
+        <input id="username" type="text" placeholder="您的称呼" value="访客01"
+               class="w-full px-5 py-3 glass-input rounded-xl mb-4 text-sm transition placeholder:text-slate-400">
+        <button onclick="toggleConnect()" class="w-full bg-indigo-600/90 text-white font-medium py-3 rounded-xl hover:bg-indigo-600 transition shadow-lg shadow-indigo-200/50">
+            开始对话
+        </button>
+    </div>
+
+    <!-- 消息区 -->
+    <div id="chat-box" class="flex-1 overflow-y-auto p-5 flex flex-col gap-3">
+        <div class="text-center text-slate-400 mt-10 text-sm">
+            <p>👋 您好，我是智能助理，很高兴为您服务！</p>
+        </div>
+    </div>
+
+    <!-- 输入区 -->
+    <div class="p-4 bg-white/10 backdrop-blur-md border-t border-white/20">
+        <div class="flex gap-2">
+            <input id="content" type="text" placeholder="请输入您的问题..."
+                   class="flex-1 glass-input px-4 py-3 rounded-xl transition"
+                   onkeydown="if(event.key === 'Enter') send()">
+            <button onclick="send()" id="btn-send" class="bg-indigo-500/80 text-white p-3 rounded-xl hover:bg-indigo-500 transition disabled:opacity-50 backdrop-blur-sm border border-white/20" disabled>
+                <i data-lucide="send-horizontal" class="w-5 h-5"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    lucide.createIcons();
+    let ws;
+    let user;
+    let isHumanMode = false; // 是否已转人工
+    let sessionId = null; // 会话ID
+    const chatBox = document.getElementById('chat-box');
+    const loginLayer = document.getElementById('login-layer');
+    const statusEl = document.getElementById('status');
+    const btnConn = document.getElementById('btn-conn');
+    const btnSend = document.getElementById('btn-send');
+    const btnHuman = document.getElementById('btn-human');
+    const contentInput = document.getElementById('content');
+
+    function toggleMode() {
+        if (!isHumanMode) {
+            // 当前是 AI，切换到人工
+            requestHumanAgent();
+        } else {
+            // 当前是人工，切换回 AI
+            switchToAi();
+        }
+    }
+
+    function requestHumanAgent() {
+        if (isHumanMode) return; 
+        isHumanMode = true;
+        btnHuman.textContent = '切换回 AI';
+        btnHuman.classList.replace('bg-rose-500/80', 'bg-indigo-500/80');
+        btnHuman.classList.replace('hover:bg-rose-500', 'hover:bg-indigo-500');
+        statusEl.textContent = '正在请求转接人工...';
+        
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ to: 'SYSTEM', content: 'REQUEST_HUMAN' }));
+        }
+        appendMessage({ from: 'SYSTEM', content: '已为您请求人工客服，请稍候...' });
+    }
+
+    function switchToAi() {
+        isHumanMode = false;
+        btnHuman.textContent = '转人工';
+        btnHuman.classList.replace('bg-indigo-500/80', 'bg-rose-500/80');
+        btnHuman.classList.replace('hover:bg-indigo-500', 'hover:bg-rose-500');
+        statusEl.textContent = 'AI 助理在线';
+        statusEl.className = 'text-xs text-indigo-600 font-medium';
+        
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ to: 'SYSTEM', content: 'SWITCH_TO_AI' }));
+        }
+        appendMessage({ from: 'SYSTEM', content: '🤖 已切换回智能助理模式' });
+    }
+
+    function toggleConnect() {
+        user = document.getElementById('username').value;
+        if (!user) return alert('请输入您的称呼');
+        if (ws) { ws.close(); return; }
+
+        console.log('[CUSTOMER] 正在连接 WebSocket, 用户:', user);
+        loginLayer.classList.add('hidden');
+        btnConn.textContent = '结束';
+        statusEl.textContent = '正在连接...';
+
+        ws = new WebSocket(`ws://localhost:8082/chat?username=${user}&role=CUSTOMER`);
+
+        ws.onopen = () => {
+            console.log('[CUSTOMER] WebSocket 已连接');
+            statusEl.textContent = 'AI 助理在线';
+            statusEl.className = 'text-xs text-indigo-600 font-medium';
+            btnSend.disabled = false;
+
+            // 生成会话ID（基于用户名的简单hash）
+            sessionId = user.split('').reduce((a,b)=>a+b.charCodeAt(0),0) % 1000000;
+            console.log('[CUSTOMER] 会话ID:', sessionId);
+
+            // 保存用户信息到数据库
+            fetch('/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    username: user, 
+                    role: 'CUSTOMER'
+                })
+            }).then(res => res.json())
+              .then(data => console.log('[CUSTOMER] 用户信息已保存:', data))
+              .catch(err => console.error('[CUSTOMER] 保存用户信息失败:', err));
+        };
+
+        ws.onmessage = (e) => {
+            console.log('[CUSTOMER] 收到消息:', e.data);
+            const data = JSON.parse(e.data);
+            console.log('[CUSTOMER] 消息详情 - from:', data.from, 'content:', data.content);
+            
+            if (data.from === 'SYSTEM' && data.content === 'AGENT_JOINED') {
+                statusEl.textContent = '人工客服已接入';
+                statusEl.className = 'text-xs text-green-600 font-medium';
+                appendMessage({ from: 'SYSTEM', content: '👩‍💼 人工客服已接入，您好！' });
+            } else if (data.from === 'AI' || data.from === 'ASSISTANT' || data.from === 'BOT') {
+                // AI 的消息不显示
+                console.log('[CUSTOMER] AI 消息已过滤:', data.content);
+            } else {
+                console.log('[CUSTOMER] 显示消息:', data);
+                appendMessage(data);
+            }
+        };
+
+        ws.onclose = (e) => {
+            console.log('[CUSTOMER] WebSocket 已断开');
+            loginLayer.classList.remove('hidden');
+            btnConn.textContent = '开始';
+            btnHuman.classList.add('hidden');
+            statusEl.textContent = '连接已断开';
+            btnSend.disabled = true;
+            isHumanMode = false;
+            ws = null;
+        };
+    }
+
+    async function send() {
+        const c = document.getElementById('content').value.trim();
+        if (!c || !ws) return;
+
+        // 本地反显
+        appendMessage({ from: user, content: c });
+        document.getElementById('content').value = '';
+
+        if (isHumanMode) {
+            // 人工模式：直接走 WebSocket
+            console.log('[CUSTOMER] >>> 当前 isHumanMode: true, 准备发送:', c);
+            const payload = { to: 'AGENT', content: c, sessionId: sessionId };
+            console.log('[CUSTOMER] >>> 发送 payloads:', JSON.stringify(payload));
+            ws.send(JSON.stringify(payload));
+        } else {
+            // AI 模式：调用后端 AI 接口
+            statusEl.textContent = 'AI 助理正在思考...';
+            try {
+                const res = await fetch('/users/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: c, id: 1, sessionId: sessionId })
+                });
+                const aiReply = await res.text();
+                
+                if (aiReply.includes('__TRANSFER_TO_HUMAN__')) {
+                    requestHumanAgent();
+                } else {
+                    appendMessage({ from: 'AI Assistant', content: aiReply });
+                    statusEl.textContent = 'AI 助理在线';
+                    // 如果还没点按钮，显示转人工按钮
+                    if (!isHumanMode) btnHuman.classList.remove('hidden');
+                }
+            } catch (err) {
+                console.error('AI 接口调用失败:', err);
+                statusEl.textContent = 'AI 助理暂时离线';
+            }
+        }
+    }
+
+    function appendMessage(data) {
+        const div = document.createElement('div');
+        const isMe = data.from === user;
+        if (data.from === 'SYSTEM') {
+            div.className = 'msg-sys'; div.textContent = data.content;
+        } else {
+            div.className = `msg-bubble ${isMe ? 'msg-me' : 'msg-other'}`;
+            div.textContent = data.content;
+        }
+        chatBox.appendChild(div);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+</script>
+</body>
+</html>

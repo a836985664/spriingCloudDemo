@@ -1,0 +1,54 @@
+# src/main/resources/bootstrap.yml
+spring:
+  application:
+    name: user-service
+  cloud:
+    nacos:
+      config:
+        server-addr: localhost:8848
+        file-extension: yaml
+        group: DEFAULT_GROUP
+      discovery:
+        server-addr: localhost:8848
+  config:
+    import:
+      - nacos:${spring.application.name}.${spring.cloud.nacos.config.file-extension}
+  ai:
+    ollama:
+      base-url: http://localhost:11434
+      chat:
+        options:
+          model: gemma4:31b-cloud
+          temperature: 0.7
+      timeout: 60s
+---
+# 下面是application.yml的内容，应该分开
+# src/main/resources/application.yml
+server:
+  port: 8082
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/postgres
+    username: postgres
+    password: root
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+# JWT配置
+jwt:
+  secret: xyncyKe+TIJtTv2P/FUcx575oR9GU/Wvy7G7CeloqvM=
+  expiration: 3600000  # 1小时（毫秒）
+
+# 微信配置（模拟数据，后续替换为真实配置）
+wechat:
+  appid: mock_appid
+  secret: mock_secret
+  redirect-uri: http://localhost:8082/api/auth/wechat/callback

@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>语音录制转MP3</title>
+    <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 700px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+
+        .info-box {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            font-size: 16px;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .info-box .label {
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .mic-button {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 40px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .mic-button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .mic-button.recording {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+        }
+
+        .status {
+            font-size: 16px;
+            color: #666;
+            text-align: center;
+            min-height: 24px;
+        }
+
+        .status.recording {
+            color: #f5576c;
+            font-weight: bold;
+        }
+
+        .upload-button {
+            padding: 12px 40px;
+            border: none;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            display: none;
+        }
+
+        .upload-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .upload-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .upload-button.show {
+            display: block;
+        }
+
+        .error-message {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c33;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .success-message {
+            background: #efe;
+            border: 1px solid #cfc;
+            color: #3c3;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .success-message.show {
+            display: block;
+        }
+
+        .not-supported {
+            text-align: center;
+            color: #c33;
+            font-size: 16px;
+            padding: 20px;
+            background: #fee;
+            border-radius: 12px;
+            display: none;
+        }
+
+        .not-supported.show {
+            display: block;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .progress-bar.show {
+            display: block;
+        }
+
+        .progress-bar .progress {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .file-list {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .file-item {
+            padding: 8px 12px;
+            background: white;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .file-item .name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .file-item .size {
+            color: #666;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+
+        .preview-section {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            display: none;
+        }
+
+        .preview-section.show {
+            display: block;
+        }
+
+        .preview-section h3 {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .preview-section audio {
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .preview-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .preview-button {
+            flex: 1;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .preview-button.play {
+            background: #667eea;
+            color: white;
+        }
+
+        .preview-button.play:hover {
+            background: #5568d3;
+        }
+
+        .preview-button.download {
+            background: #28a745;
+            color: white;
+        }
+
+        .preview-button.download:hover {
+            background: #218838;
+        }
+
+        .format-selector {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+
+        .format-selector h3 {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .format-options {
+            display: flex;
+            gap: 10px;
+        }
+
+        .format-option {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .format-option:hover {
+            border-color: #667eea;
+        }
+
+        .format-option.active {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+
+        .format-option .label {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .format-option .description {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 语音录制转MP3</h1>
+
+        <div class="not-supported" id="not-supported">
+            您的浏览器不支持音频录制功能，请使用 Chrome 或 Edge 浏览器。
+        </div>
+
+        <div class="info-box">
+            <div class="label">📋 录制信息</div>
+            <div id="info-content">点击下方按钮开始录制...</div>
+        </div>
+
+        <div class="controls">
+            <button class="mic-button" id="mic-button" title="点击开始录制">
+                🎤
+            </button>
+
+            <div class="status" id="status">点击麦克风按钮开始录制</div>
+
+            <button class="upload-button" id="upload-button">上传MP3文件</button>
+
+            <div class="progress-bar" id="progress-bar">
+                <div class="progress" id="progress"></div>
+            </div>
+        </div>
+
+        <div class="error-message" id="error-message"></div>
+        <div class="success-message" id="success-message"></div>
+
+        <div class="file-list" id="file-list">
+            <div style="text-align: center; color: #999; font-size: 14px;">
+                暂无上传的文件
+            </div>
+        </div>
+
+        <div class="preview-section" id="preview-section">
+            <h3>🎵 音频预览</h3>
+            <audio id="audio-preview" controls></audio>
+            <div class="preview-buttons">
+                <button class="preview-button play" id="play-original">播放原始音频</button>
+                <button class="preview-button download" id="download-file">下载音频文件</button>
+            </div>
+        </div>
+
+        <div class="format-selector" id="format-selector">
+            <h3>📁 选择保存格式</h3>
+            <div class="format-options">
+                <div class="format-option active" data-format="webm" id="format-webm">
+                    <div class="label">WebM</div>
+                    <div class="description">原始格式，有声音✅</div>
+                </div>
+                <div class="format-option" data-format="mp3" id="format-mp3">
+                    <div class="label">MP3</div>
+                    <div class="description">兼容性好，可能无声音❌</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 检查浏览器是否支持音频录制
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            document.getElementById('not-supported').classList.add('show');
+            document.getElementById('mic-button').style.display = 'none';
+            document.getElementById('upload-button').style.display = 'none';
+        } else {
+            let mediaRecorder;
+            let audioChunks = [];
+            let isRecording = false;
+            let audioBlob = null;
+            let mp3Blob = null;
+            let startTime = null;
+            let endTime = null;
+
+            const micButton = document.getElementById('mic-button');
+            const uploadButton = document.getElementById('upload-button');
+            const statusDiv = document.getElementById('status');
+            const infoContent = document.getElementById('info-content');
+            const errorMessage = document.getElementById('error-message');
+            const successMessage = document.getElementById('success-message');
+            const progressBar = document.getElementById('progress-bar');
+            const progress = document.getElementById('progress');
+            const fileList = document.getElementById('file-list');
+            const previewSection = document.getElementById('preview-section');
+            const audioPreview = document.getElementById('audio-preview');
+            const playOriginalButton = document.getElementById('play-original');
+            const downloadFileButton = document.getElementById('download-file');
+            const formatWebm = document.getElementById('format-webm');
+            const formatMp3 = document.getElementById('format-mp3');
+            let selectedFormat = 'webm'; // 默认使用WebM格式
+
+            // 开始/停止录制
+            micButton.addEventListener('click', async () => {
+                if (isRecording) {
+                    stopRecording();
+                } else {
+                    await startRecording();
+                }
+            });
+
+            // 上传文件
+            uploadButton.addEventListener('click', () => {
+                if (mp3Blob) {
+                    uploadMP3File(mp3Blob);
+                }
+            });
+
+            // 开始录制
+            async function startRecording() {
+                try {
+                    console.log('🎤 准备开始录制...');
+                    
+                    // 请求麦克风权限，指定音频参数
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true,
+                            autoGainControl: true,
+                            sampleRate: 48000,
+                            channelCount: 2
+                        }
+                    });
+                    
+                    console.log('✅ 麦克风流获取成功');
+                    console.log('📊 音频轨道信息:');
+                    stream.getAudioTracks().forEach(track => {
+                        console.log('  - 轨道ID:', track.id);
+                        console.log('  - 标签:', track.label);
+                        console.log('  - 启用:', track.enabled);
+                        const settings = track.getSettings();
+                        console.log('  - 采样率:', settings.sampleRate);
+                        console.log('  - 声道数:', settings.channelCount);
+                    });
+                    
+                    // 使用支持的MIME类型
+                    let mimeType = 'audio/webm';
+                    const types = [
+                        'audio/webm;codecs=opus',
+                        'audio/webm',
+                        'audio/ogg;codecs=opus',
+                        'audio/ogg'
+                    ];
+                    
+                    for (const type of types) {
+                        if (MediaRecorder.isTypeSupported(type)) {
+                            mimeType = type;
+                            console.log('✅ 使用MIME类型:', mimeType);
+                            break;
+                        }
+                    }
+                    
+                    mediaRecorder = new MediaRecorder(stream, { 
+                        mimeType: mimeType,
+                        audioBitsPerSecond: 128000
+                    });
+                    
+                    audioChunks = [];
+                    let totalSize = 0;
+
+                    mediaRecorder.ondataavailable = (event) => {
+                        if (event.data && event.data.size > 0) {
+                            audioChunks.push(event.data);
+                            totalSize += event.data.size;
+                            console.log('📦 收到音频数据块:', event.data.size, '字节, 总计:', totalSize, '字节');
+                        } else {
+                            console.warn('⚠️ 收到空数据块');
+                        }
+                    };
+
+                    mediaRecorder.onstop = async () => {
+                        console.log('⏹️ 录制停止，开始处理音频...');
+                        console.log('📊 总共收到', audioChunks.length, '个数据块');
+                        endTime = new Date();
+                        
+                        // 创建音频Blob
+                        audioBlob = new Blob(audioChunks, { type: mimeType });
+                        console.log('🎵 原始音频信息:');
+                        console.log('  - 大小:', audioBlob.size, '字节');
+                        console.log('  - 类型:', audioBlob.type);
+                        console.log('  - 数据块数量:', audioChunks.length);
+                        
+                        if (audioBlob.size === 0) {
+                            throw new Error('音频数据为空，请检查麦克风是否正常工作');
+                        }
+                        
+                        // 转换为MP3
+                        await convertToMP3(audioBlob);
+                        
+                        // 停止所有轨道
+                        stream.getTracks().forEach(track => track.stop());
+                    };
+
+                    mediaRecorder.onerror = (event) => {
+                        console.error('❌ MediaRecorder错误:', event.error);
+                        showError('录制错误: ' + event.error.message);
+                    };
+
+                    mediaRecorder.start(100); // 每100ms收集一次数据
+                    isRecording = true;
+                    startTime = new Date();
+                    
+                    micButton.classList.add('recording');
+                    statusDiv.textContent = '正在录制...';
+                    statusDiv.classList.add('recording');
+                    
+                    updateInfo();
+                    hideMessages();
+                    
+                    console.log('✅ 录制已开始');
+                    
+                } catch (error) {
+                    console.error('❌ 录制失败:', error);
+                    showError('无法访问麦克风: ' + error.message);
+                }
+            }
+
+            // 停止录制
+            function stopRecording() {
+                if (mediaRecorder && isRecording) {
+                    console.log('⏹️ 停止录制...');
+                    mediaRecorder.stop();
+                    isRecording = false;
+                    
+                    micButton.classList.remove('recording');
+                    statusDiv.textContent = '正在转换为MP3...';
+                    statusDiv.classList.remove('recording');
+                }
+            }
+
+            // 转换为MP3
+            async function convertToMP3(webmBlob) {
+                try {
+                    console.log('🔄 开始转换为MP3...');
+                    console.log('📥 输入文件大小:', webmBlob.size, '字节');
+                    
+                    // 读取WebM文件
+                    const arrayBuffer = await webmBlob.arrayBuffer();
+                    console.log('📥 ArrayBuffer大小:', arrayBuffer.byteLength, '字节');
+                    
+                    if (arrayBuffer.byteLength === 0) {
+                        throw new Error('音频数据为空');
+                    }
+                    
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                        sampleRate: 48000
+                    });
+                    
+                    console.log('🎵 解码音频数据...');
+                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    
+                    console.log('🎵 音频信息:');
+                    console.log('  - 采样率:', audioBuffer.sampleRate, 'Hz');
+                    console.log('  - 声道数:', audioBuffer.numberOfChannels);
+                    console.log('  - 时长:', audioBuffer.duration.toFixed(2), '秒');
+                    console.log('  - 总样本数:', audioBuffer.length);
+                    
+                    // 检查音频数据
+                    for (let i = 0; i < audioBuffer.numberOfChannels; i++) {
+                        const channelData = audioBuffer.getChannelData(i);
+                        let maxAmplitude = 0;
+                        let hasSound = false;
+                        
+                        for (let j = 0; j < channelData.length; j++) {
+                            const amplitude = Math.abs(channelData[j]);
+                            if (amplitude > maxAmplitude) {
+                                maxAmplitude = amplitude;
+                            }
+                            if (amplitude > 0.001) {
+                                hasSound = true;
+                            }
+                        }
+                        
+                        console.log(`  - 声道${i}最大振幅:`, maxAmplitude.toFixed(6));
+                        console.log(`  - 声道${i}有声音:`, hasSound ? '是' : '否');
+                        
+                        if (!hasSound) {
+                            console.warn('⚠️ 声道' + i + '没有检测到声音！');
+                        }
+                    }
+                    
+                    // 获取音频数据
+                    const channels = [];
+                    for (let i = 0; i < audioBuffer.numberOfChannels; i++) {
+                        channels.push(audioBuffer.getChannelData(i));
+                    }
+                    
+                    // 创建MP3编码器
+                    console.log('🔧 初始化MP3编码器...');
+                    const mp3encoder = new lamejs.Mp3Encoder(audioBuffer.numberOfChannels, audioBuffer.sampleRate, 128);
+                    const mp3Data = [];
+                    
+                    // 分块编码
+                    const sampleBlockSize = 1152;
+                    const left = channels[0];
+                    const right = channels.length > 1 ? channels[1] : channels[0];
+                    
+                    console.log('🔄 开始编码MP3...');
+                    console.log('  - 总样本数:', left.length);
+                    console.log('  - 块大小:', sampleBlockSize);
+                    console.log('  - 预计块数:', Math.ceil(left.length / sampleBlockSize));
+                    
+                    let encodedBlocks = 0;
+                    for (let i = 0; i < left.length; i += sampleBlockSize) {
+                        const leftChunk = left.subarray(i, i + sampleBlockSize);
+                        const rightChunk = right.subarray(i, i + sampleBlockSize);
+                        
+                        const mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk);
+                        if (mp3buf.length > 0) {
+                            mp3Data.push(mp3buf);
+                            encodedBlocks++;
+                        }
+                    }
+                    
+                    console.log('✅ 编码完成，共编码', encodedBlocks, '个块');
+                    
+                    // 完成编码
+                    const mp3buf = mp3encoder.flush();
+                    if (mp3buf.length > 0) {
+                        mp3Data.push(mp3buf);
+                        console.log('✅ 刷新缓冲区，追加', mp3buf.length, '字节');
+                    }
+                    
+                    // 创建MP3 Blob
+                    mp3Blob = new Blob(mp3Data, { type: 'audio/mp3' });
+                    
+                    console.log('✅ MP3转换完成!');
+                    console.log('📊 MP3文件大小:', mp3Blob.size, '字节');
+                    console.log('📊 压缩率:', ((mp3Blob.size / webmBlob.size) * 100).toFixed(2), '%');
+                    
+                    if (mp3Blob.size === 0) {
+                        throw new Error('MP3文件为空，编码失败');
+                    }
+                    
+                    // 更新UI
+                    statusDiv.textContent = '转换完成，可以上传了';
+                    uploadButton.classList.add('show');
+                    previewSection.classList.add('show');
+                    updateInfo();
+                    
+                    // 设置音频预览
+                    const originalUrl = URL.createObjectURL(audioBlob);
+                    const mp3Url = URL.createObjectURL(mp3Blob);
+                    audioPreview.src = selectedFormat === 'webm' ? originalUrl : mp3Url;
+                    
+                    console.log('🎵 音频预览URL已创建');
+                    console.log('  - 原始音频URL:', originalUrl);
+                    console.log('  - MP3音频URL:', mp3Url);
+                    console.log('  - 当前选择格式:', selectedFormat);
+                    
+                    showSuccess('音频转换完成！文件大小: ' + formatFileSize(selectedFormat === 'webm' ? audioBlob.size : mp3Blob.size));
+                    
+                } catch (error) {
+                    console.error('❌ MP3转换失败:', error);
+                    console.error('错误堆栈:', error.stack);
+                    showError('MP3转换失败: ' + error.message);
+                    statusDiv.textContent = '转换失败';
+                }
+            }
+
+            // 上传MP3文件
+            async function uploadMP3File(blob) {
+                try {
+                    console.log('📤 开始上传MP3文件...');
+                    
+                    uploadButton.disabled = true;
+                    uploadButton.textContent = '上传中...';
+                    progressBar.classList.add('show');
+                    
+                    // 创建FormData
+                    const formData = new FormData();
+                    const timestamp = new Date().getTime();
+                    formData.append('file', blob, `voice_${timestamp}.mp3`);
+                    formData.append('username', 'user_' + timestamp);
+                    
+                    // 上传文件
+                    const response = await fetch('http://localhost:8082/api/voice/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        console.log('✅ 文件上传成功!');
+                        console.log('📁 文件名:', result.filename);
+                        console.log('💾 保存路径:', result.path);
+                        
+                        showSuccess('文件上传成功！保存路径: ' + result.path);
+                        loadFileList();
+                    } else {
+                        throw new Error(result.message);
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ 文件上传失败:', error);
+                    showError('文件上传失败: ' + error.message);
+                } finally {
+                    uploadButton.disabled = false;
+                    uploadButton.textContent = '上传MP3文件';
+                    progressBar.classList.remove('show');
+                    progress.style.width = '0%';
+                }
+            }
+
+            // 更新信息显示
+            function updateInfo() {
+                if (startTime) {
+                    const duration = endTime ? ((endTime - startTime) / 1000).toFixed(2) : '录制中...';
+                    let info = `录制时长: ${duration} 秒<br>`;
+                    
+                    if (audioBlob) {
+                        info += `原始大小: ${formatFileSize(audioBlob.size)}<br>`;
+                    }
+                    
+                    if (mp3Blob) {
+                        info += `MP3大小: ${formatFileSize(mp3Blob)}<br>`;
+                        info += `压缩率: ${((mp3Blob.size / audioBlob.size) * 100).toFixed(2)}%`;
+                    }
+                    
+                    infoContent.innerHTML = info;
+                }
+            }
+
+            // 格式化文件大小
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            // 显示错误
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorMessage.classList.add('show');
+                setTimeout(() => {
+                    errorMessage.classList.remove('show');
+                }, 5000);
+            }
+
+            // 显示成功
+            function showSuccess(message) {
+                successMessage.textContent = message;
+                successMessage.classList.add('show');
+                setTimeout(() => {
+                    successMessage.classList.remove('show');
+                }, 5000);
+            }
+
+            // 隐藏消息
+            function hideMessages() {
+                errorMessage.classList.remove('show');
+                successMessage.classList.remove('show');
+            }
+
+            // 加载文件列表
+            async function loadFileList() {
+                try {
+                    const response = await fetch('http://localhost:8082/api/voice/list');
+                    const result = await response.json();
+                    
+                    if (result.success && result.files.length > 0) {
+                        fileList.innerHTML = result.files.map(file => `
+                            <div class="file-item">
+                                <span class="name">🎵 ${file}</span>
+                            </div>
+                        `).join('');
+                    } else {
+                        fileList.innerHTML = '<div style="text-align: center; color: #999; font-size: 14px;">暂无上传的文件</div>';
+                    }
+                } catch (error) {
+                    console.error('加载文件列表失败:', error);
+                }
+            }
+
+            // 格式选择
+            formatWebm.addEventListener('click', () => {
+                selectedFormat = 'webm';
+                formatWebm.classList.add('active');
+                formatMp3.classList.remove('active');
+                if (audioBlob) {
+                    audioPreview.src = URL.createObjectURL(audioBlob);
+                }
+                console.log('📁 切换到WebM格式');
+            });
+
+            formatMp3.addEventListener('click', () => {
+                selectedFormat = 'mp3';
+                formatMp3.classList.add('active');
+                formatWebm.classList.remove('active');
+                if (mp3Blob) {
+                    audioPreview.src = URL.createObjectURL(mp3Blob);
+                }
+                console.log('📁 切换到MP3格式');
+            });
+
+            // 播放原始音频
+            playOriginalButton.addEventListener('click', () => {
+                if (audioBlob) {
+                    const originalUrl = URL.createObjectURL(audioBlob);
+                    audioPreview.src = originalUrl;
+                    audioPreview.play();
+                    console.log('🎵 播放原始音频');
+                }
+            });
+
+            // 下载文件
+            downloadFileButton.addEventListener('click', () => {
+                const blob = selectedFormat === 'webm' ? audioBlob : mp3Blob;
+                const extension = selectedFormat === 'webm' ? 'webm' : 'mp3';
+                
+                if (blob) {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `voice_recording.${extension}`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    console.log(`📥 ${extension.toUpperCase()}文件已下载`);
+                }
+            });
+
+            // 页面加载时获取文件列表
+            loadFileList();
+        }
+    </script>
+</body>
+</html>

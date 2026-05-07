@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微信扫码登录测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .qrcode-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+        #qrcode {
+            max-width: 300px;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .status.pending {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status.expired {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 10px;
+            background-color: #07c160;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .button:hover {
+            background-color: #06ad56;
+        }
+        .button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .info {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+        }
+        .info h3 {
+            margin-top: 0;
+        }
+        .info code {
+            background-color: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        .token-display {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            word-break: break-all;
+        }
+        .token-display h3 {
+            margin-top: 0;
+        }
+        .token-display pre {
+            background-color: #f1f1f1;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>微信扫码登录测试</h1>
+
+        <div class="info">
+            <h3>测试说明</h3>
+            <p>1. 点击"获取二维码"按钮</p>
+            <p>2. 用手机扫描二维码（或点击"模拟扫码"按钮）</p>
+            <p>3. 在手机端点击"确认登录"按钮</p>
+            <p>4. 电脑端自动跳转到欢迎页面</p>
+            <p>5. Token会自动保存到 localStorage</p>
+        </div>
+
+        <div class="qrcode-container">
+            <button id="getQrcodeBtn" class="button" onclick="getQrcode()">获取二维码</button>
+            <button id="mockScanBtn" class="button" onclick="mockScan()" disabled>模拟扫码</button>
+        </div>
+
+        <div id="qrcodeContainer" class="qrcode-container" style="display: none;">
+            <img id="qrcode" alt="二维码" />
+            <p id="stateDisplay" style="margin-top: 10px; color: #666;"></p>
+        </div>
+
+        <div id="status" class="status" style="display: none;"></div>
+
+        <div id="tokenDisplay" class="token-display" style="display: none;">
+            <h3>登录成功！Token信息：</h3>
+            <pre id="tokenInfo"></pre>
+        </div>
+    </div>
+
+    <script>
+        let currentState = null;
+        let pollInterval = null;
+
+        // 获取二维码
+        async function getQrcode() {
+            try {
+                const response = await fetch('/api/auth/wechat/qrcode');
+                const data = await response.json();
+
+                console.log('获取二维码成功:', data);
+
+                // 显示二维码
+                document.getElementById('qrcode').src = data.qrcodeImage;
+                document.getElementById('qrcodeContainer').style.display = 'block';
+                document.getElementById('stateDisplay').textContent = `State: ${data.state}`;
+
+                // 保存state
+                currentState = data.state;
+
+                // 启用模拟扫码按钮
+                document.getElementById('mockScanBtn').disabled = false;
+
+                // 开始轮询
+                startPolling();
+
+            } catch (error) {
+                console.error('获取二维码失败:', error);
+                alert('获取二维码失败，请检查后端服务是否启动');
+            }
+        }
+
+        // 模拟扫码
+        async function mockScan() {
+            if (!currentState) {
+                alert('请先获取二维码');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/auth/wechat/mock-scan', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ state: currentState })
+                });
+
+                if (response.ok) {
+                    const token = await response.text();
+                    console.log('模拟扫码成功，Token:', token);
+                    alert('模拟扫码成功！等待轮询检测到登录状态...');
+                } else {
+                    console.error('模拟扫码失败:', response.statusText);
+                    alert('模拟扫码失败');
+                }
+            } catch (error) {
+                console.error('模拟扫码失败:', error);
+                alert('模拟扫码失败');
+            }
+        }
+
+        // 开始轮询
+        function startPolling() {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+            }
+
+            pollInterval = setInterval(async () => {
+                if (!currentState) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/api/auth/wechat/status?state=${currentState}`);
+                    const data = await response.json();
+
+                    console.log('轮询状态:', data);
+
+                    const statusDiv = document.getElementById('status');
+                    statusDiv.style.display = 'block';
+
+                    if (data.status === 'pending') {
+                        statusDiv.className = 'status pending';
+                        statusDiv.textContent = '等待扫码...';
+                    } else if (data.status === 'success') {
+                        statusDiv.className = 'status success';
+                        statusDiv.textContent = '登录成功！';
+
+                        // 停止轮询
+                        clearInterval(pollInterval);
+                        pollInterval = null;
+
+                        // 保存到localStorage
+                        localStorage.setItem('token', data.token);
+
+                        // 禁用按钮
+                        document.getElementById('mockScanBtn').disabled = true;
+
+                        // 显示Token
+                        displayToken(data.token);
+
+                        // 2秒后跳转到欢迎页面
+                        setTimeout(() => {
+                            window.location.href = '/welcome.html';
+                        }, 2000);
+
+                    } else if (data.status === 'expired') {
+                        statusDiv.className = 'status expired';
+                        statusDiv.textContent = '二维码已过期，请重新获取';
+
+                        // 停止轮询
+                        clearInterval(pollInterval);
+                        pollInterval = null;
+
+                        // 禁用按钮
+                        document.getElementById('mockScanBtn').disabled = true;
+                    }
+                } catch (error) {
+                    console.error('轮询失败:', error);
+                }
+            }, 2000); // 每2秒轮询一次
+        }
+
+        // 显示Token信息
+        function displayToken(token) {
+            const tokenDisplay = document.getElementById('tokenDisplay');
+            const tokenInfo = document.getElementById('tokenInfo');
+
+            try {
+                // 解析JWT Token
+                const parts = token.split('.');
+                const header = JSON.parse(atob(parts[0]));
+                const payload = JSON.parse(atob(parts[1]));
+
+                tokenInfo.textContent = JSON.stringify({
+                    header: header,
+                    payload: payload,
+                    fullToken: token
+                }, null, 2);
+
+                tokenDisplay.style.display = 'block';
+            } catch (error) {
+                console.error('解析Token失败:', error);
+                tokenInfo.textContent = token;
+                tokenDisplay.style.display = 'block';
+            }
+        }
+
+        // 页面加载时检查是否有保存的Token
+        window.onload = function() {
+            const savedToken = localStorage.getItem('token');
+            if (savedToken) {
+                displayToken(savedToken);
+            }
+        };
+    </script>
+</body>
+</html>

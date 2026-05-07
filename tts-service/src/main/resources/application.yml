@@ -1,0 +1,24 @@
+server:
+  port: 8082
+
+
+spring:
+  application:
+    name: tts-service
+  jvm:
+    args: --enable-native-access=ALL-UNNAMED
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+chattts:
+  python:
+    path: C:\Users\Administrator\AppData\Local\Programs\Python\Python310\python.exe  # 请根据您的Python安装路径修改
+  script:
+    path: D:\ideaProject\ChatTTS\examples\cmd\run.py  # 请根据您的ChatTTS安装路径修改
+  model:
+    path: D:\ideaProject\ChatTTS\

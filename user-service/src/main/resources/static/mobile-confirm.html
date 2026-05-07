@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>确认登录</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+                'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px 30px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .user-info {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            margin: 0 auto 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+        }
+
+        .username {
+            color: #333;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .device-info {
+            color: #999;
+            font-size: 12px;
+        }
+
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 14px 24px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-confirm {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-confirm:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-confirm:active {
+            transform: translateY(0);
+        }
+
+        .btn-cancel {
+            background: #f8f9fa;
+            color: #666;
+            border: 2px solid #e9ecef;
+        }
+
+        .btn-cancel:hover {
+            background: #e9ecef;
+        }
+
+        .loading {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .success {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            background: #d4edda;
+            border-radius: 12px;
+            color: #155724;
+        }
+
+        .success-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        .error {
+            display: none;
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8d7da;
+            border-radius: 12px;
+            color: #721c24;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">📱</div>
+        <h1>确认登录</h1>
+        <p class="subtitle">检测到您正在使用电脑登录<br>请确认是否为本人操作</p>
+
+        <div class="user-info">
+            <div class="avatar">👤</div>
+            <div class="username">微信用户</div>
+            <div class="device-info">Windows PC • Chrome 浏览器</div>
+        </div>
+
+        <div class="button-group">
+            <button class="btn btn-confirm" onclick="confirmLogin()">确认登录</button>
+            <button class="btn btn-cancel" onclick="cancelLogin()">取消</button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>正在登录...</p>
+        </div>
+
+        <div class="success" id="success">
+            <div class="success-icon">✅</div>
+            <p>登录成功！</p>
+            <p style="font-size: 12px; margin-top: 10px; color: #666;">电脑端将自动跳转</p>
+        </div>
+
+        <div class="error" id="error"></div>
+    </div>
+
+    <script>
+        // 从URL获取state参数
+        const urlParams = new URLSearchParams(window.location.search);
+        const state = urlParams.get('state');
+
+        if (!state) {
+            showError('缺少必要参数，请重新扫码');
+        }
+
+        // 确认登录
+        async function confirmLogin() {
+            if (!state) {
+                showError('缺少必要参数，请重新扫码');
+                return;
+            }
+
+            // 显示加载状态
+            document.getElementById('loading').style.display = 'block';
+            document.querySelector('.button-group').style.display = 'none';
+
+            try {
+                // 调用后端接口确认登录
+                const response = await fetch('/api/auth/wechat/mock-scan', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ state: state })
+                });
+
+                if (response.ok) {
+                    const token = await response.text();
+                    console.log('登录成功，Token:', token);
+
+                    // 显示成功状态
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('success').style.display = 'block';
+
+                    // 3秒后关闭页面（移动端）
+                    setTimeout(() => {
+                        // 尝试关闭窗口（部分浏览器支持）
+                        window.close();
+                        // 如果无法关闭，显示提示
+                        document.getElementById('success').innerHTML = `
+                            <div class="success-icon">✅</div>
+                            <p>登录成功！</p>
+                            <p style="font-size: 12px; margin-top: 10px; color: #666;">请返回电脑端查看</p>
+                        `;
+                    }, 3000);
+                } else {
+                    throw new Error('登录失败');
+                }
+            } catch (error) {
+                console.error('登录失败:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.querySelector('.button-group').style.display = 'flex';
+                showError('登录失败，请重试');
+            }
+        }
+
+        // 取消登录
+        function cancelLogin() {
+            // 关闭页面
+            window.close();
+            // 如果无法关闭，显示提示
+            alert('已取消登录');
+        }
+
+        // 显示错误信息
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
