@@ -8,12 +8,18 @@ spring:
   jvm:
     args: --enable-native-access=ALL-UNNAMED
 
-eureka:
-  client:
-    service-url:
-      defaultZone: http://localhost:8761/eureka/
-  instance:
-    prefer-ip-address: true
+# Nacos 服务注册发现配置
+spring:
+  cloud:
+    nacos:
+      server-addr: 127.0.0.1:8848  # Nacos 服务端地址
+      discovery:
+        namespace: public  # 命名空间 (public 为默认命名空间)
+        server-addr: 127.0.0.1:8848
+      config:
+        server-addr: 127.0.0.1:8848
+        file-extension: yml
+        namespace: public
 
 chattts:
   python:
