@@ -6,7 +6,7 @@
 
     <parent>
         <groupId>com.example</groupId>
-        <artifactId>spring-cloud-demo</artifactId>
+        <artifactId>stellar-infra</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
 
