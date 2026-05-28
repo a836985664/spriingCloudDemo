@@ -1,5 +1,5 @@
 server:
-  port: 8085
+  port: 8081
 
 spring:
   application:
@@ -54,9 +54,16 @@ spring:
       globalcors:
         cors-configurations:
           '[/**]':
-            allowedOrigins: "*"
-            allowedMethods: "*"
-            allowedHeaders: "*"
+            allowedOrigins:
+              - "http://localhost:5173"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders:
+              - "*"
             allowCredentials: true
             maxAge: 3600
 

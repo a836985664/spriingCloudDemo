@@ -18,6 +18,7 @@ public class TestController {
     }
     @GetMapping("/config")
     public String getConfig() {
+        System.out.println("=========> config value: " + message);
         return "Message: " + message;
     }
 }
