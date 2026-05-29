@@ -43,3 +43,11 @@ mvn spring-boot:run
 - `spring.cloud.gateway.discovery.locator.enabled`: 开启服务发现自动路由
 - `spring.cloud.gateway.globalcors`: 全局跨域配置
 - `StripPrefix=2`: 去掉 `/api` 前缀，将请求转发到服务内部路径
+
+## idea配置启动nacos
+
+1.添加运行/调试配置,添加新配置shell script
+2.执行 选择脚本文本
+3.脚本文本输入：./startup.cmd
+4.工作目录：D:\ideaProject\stellar-infra\nacos\bin
+5.保存
